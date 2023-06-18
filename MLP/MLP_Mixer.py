@@ -86,6 +86,8 @@ class MLP_Mixer(nn.Module):
 
 
 model = MLP_Mixer(7,4).to(device)
+for i in range(len(model.fc3)):
+    model.fc3[i].to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=5e-4, momentum=0.5)
 criterion = nn.CrossEntropyLoss()
 
