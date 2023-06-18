@@ -56,7 +56,7 @@ for epoch in range(2):
             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
             running_loss = 0.0
 print('Finished Training')
-PATH = './cifar_resnet.pth'
+PATH = '.save_models/cifar_resnet.pth'
 torch.save(net.state_dict(), PATH)
 
 correct = 0
