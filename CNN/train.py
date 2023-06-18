@@ -31,7 +31,7 @@ print('Using PyTorch version:', torch.__version__, ' Device:', device)
 
 
 
-net = resnet18()
+net = resnet18().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
@@ -40,7 +40,8 @@ for epoch in range(2):
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
-
+        inputs=inputs.to(device)
+        labels=labels.to(device)
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -65,6 +66,8 @@ total = 0
 with torch.no_grad():
     for data in testloader:
         images, labels = data
+        images=images.to(device)
+        labels=labels.to(device)
         # calculate outputs by running images through the network
         outputs = net(images)
         # the class with the highest energy is what we choose as prediction
