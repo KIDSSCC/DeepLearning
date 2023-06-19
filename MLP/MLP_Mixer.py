@@ -58,7 +58,7 @@ def channel_Mixer(dim,expansion_factor=4):
 class MLP_Mixer(nn.Module):
     def __init__(self,patch_size,depth):
         super(MLP_Mixer, self).__init__()
-        self.fc1=Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size)
+        self.fc1=Rearrange('b c (h p1) (w p2) -> b (h w) c (p1 p2)', p1 = patch_size, p2 = patch_size)
         self.fc2=nn.Linear((patch_size ** 2), 100)
         self.fc3=list()
         for i in range(depth):
