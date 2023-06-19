@@ -1,15 +1,13 @@
-from resnet import resnet18,resnet50,resnet101
+from resnet import resnet18
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import numpy as np
+
 
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
-
+# 数据标准化到-1——1之间
 transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 batch_size = 4
@@ -34,6 +32,7 @@ print('Using PyTorch version:', torch.__version__, ' Device:', device)
 net = resnet18().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+print(net)
 
 for epoch in range(2):
     running_loss = 0.0
