@@ -29,15 +29,15 @@ validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,
                                                 shuffle=False)
 
 
-def token_Mixer(dim,convdim,expansion_factor=4):
+def token_Mixer(dim,expansion_factor=4):
     inner_dim=dim*expansion_factor
     dropout=0.1
     block=nn.Sequential(
         nn.LayerNorm(dim),
-        nn.Conv1d(convdim,inner_dim,kernel_size=1),
+        nn.Linear(dim, inner_dim),
         nn.GELU(),
         nn.Dropout(dropout),
-        nn.Conv1d(inner_dim, convdim,kernel_size=1),
+        nn.Linear(inner_dim, dim),
         nn.Dropout(dropout)
     )
     return block
@@ -62,8 +62,8 @@ class MLP_Mixer(nn.Module):
         self.fc2=nn.Linear((patch_size ** 2), 100)
         self.fc3=list()
         for i in range(depth):
-            self.fc3.append(token_Mixer(100,16))
-            self.fc3.append(channel_Mixer(100))
+            self.fc3.append(token_Mixer(100))
+            self.fc3.append(channel_Mixer(1))
         self.fc4=nn.LayerNorm(100)
         self.fc5=Reduce('b n c -> b c', 'mean')
         self.fc6=nn.Linear(100, 10)
@@ -77,6 +77,7 @@ class MLP_Mixer(nn.Module):
         for layer in self.fc3:
             res=x
             x=res+layer(x)
+            x=x.transpose(2,3)
         print('before fc4,the size is ' + str(x.size()))
         x=self.fc4(x)
         print('before fc5,the size is ' + str(x.size()))
