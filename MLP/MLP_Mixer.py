@@ -3,7 +3,8 @@ from torch import nn
 from einops.layers.torch import Rearrange
 from torchvision import datasets, transforms
 import torch.nn.functional as F
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -88,79 +89,7 @@ class MLP_Mixer(nn.Module):
         return F.log_softmax(self.classifier_2(output),dim=1)
 
 
-
-# class FeedForward(nn.Module):
-#     def __init__(self, dim, hidden_dim, dropout = 0.):
-#         super().__init__()
-#         self.net = nn.Sequential(
-#             nn.Linear(dim, hidden_dim),
-#             nn.GELU(),
-#             nn.Dropout(dropout),
-#             nn.Linear(hidden_dim, dim),
-#             nn.Dropout(dropout)
-#         )
-#     def forward(self, x):
-#         return self.net(x)
-#
-# class MixerBlock(nn.Module):
-#
-#     def __init__(self, dim, num_patch, token_dim, channel_dim, dropout = 0.):
-#         super().__init__()
-#
-#         self.token_mix = nn.Sequential(
-#             nn.LayerNorm(dim),
-#             Rearrange('b n d -> b d n'),
-#             FeedForward(num_patch, token_dim, dropout),
-#             Rearrange('b d n -> b n d')
-#         )
-#
-#         self.channel_mix = nn.Sequential(
-#             nn.LayerNorm(dim),
-#             FeedForward(dim, channel_dim, dropout),
-#         )
-#
-#     def forward(self, x):
-#
-#         x = x + self.token_mix(x)
-#
-#         x = x + self.channel_mix(x)
-#
-#         return x
-#
-# class MLPMixer(nn.Module):
-#     def __init__(self, in_channels, dim, num_classes, patch_size, image_size, depth, token_dim, channel_dim):
-#         super().__init__()
-#         self.num_patch = (image_size // patch_size) ** 2
-#         self.to_patch_embedding = nn.Sequential(
-#             nn.Conv2d(in_channels, dim, patch_size, patch_size),
-#             Rearrange('b c h w -> b (h w) c'),
-#         )
-#
-#         self.mixer_blocks = nn.ModuleList([])
-#         for _ in range(depth):
-#             self.mixer_blocks.append(MixerBlock(dim, self.num_patch, token_dim, channel_dim))
-#
-#         self.layer_norm = nn.LayerNorm(dim)
-#
-#         self.mlp_head = nn.Sequential(
-#             nn.Linear(dim, num_classes)
-#         )
-#
-#     def forward(self, x):
-#
-#         x = self.to_patch_embedding(x)
-#
-#         for mixer_block in self.mixer_blocks:
-#             x = mixer_block(x)
-#
-#         x = self.layer_norm(x)
-#
-#         x = x.mean(dim=1)
-#
-#         return self.mlp_head(x)
-
-dim=10
-model = MLP_Mixer(1,100,7,4,400,400).to(device)
+model = MLP_Mixer(1,80,7,4,100,100).to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
 criterion = nn.CrossEntropyLoss()
 
@@ -224,3 +153,12 @@ lossv, accv = [], []
 for epoch in range(1, epochs + 1):
     train(epoch)
     validate(lossv, accv)
+
+plt.figure(figsize=(5,3))
+plt.plot(np.arange(1,epochs+1), lossv)
+plt.title('validation loss')
+
+plt.figure(figsize=(5,3))
+plt.plot(np.arange(1,epochs+1), accv)
+plt.title('validation accuracy')
+plt.show()
