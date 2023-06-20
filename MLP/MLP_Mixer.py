@@ -1,10 +1,9 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
+from einops.layers.torch import Rearrange
 from torchvision import datasets, transforms
+import torch.nn.functional as F
 
-
-from einops.layers.torch import Rearrange,Reduce
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -28,68 +27,140 @@ validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,
                                                 shuffle=False)
 
 
-def token_Mixer(dim,expansion_factor=4):
-    inner_dim=dim*expansion_factor
-    dropout=0.1
-    block=nn.Sequential(
-        nn.LayerNorm(dim),
-        nn.Linear(dim, inner_dim),
-        nn.GELU(),
-        nn.Dropout(dropout),
-        nn.Linear(inner_dim, dim),
-        nn.Dropout(dropout)
-    )
-    return block
 
-def channel_Mixer(dim,expansion_factor=100):
-    inner_dim = dim * expansion_factor
-    dropout = 0.1
-    block = nn.Sequential(
-        nn.LayerNorm(dim),
-        nn.Linear(dim, inner_dim),
-        nn.GELU(),
-        nn.Dropout(dropout),
-        nn.Linear(inner_dim, dim),
-        nn.Dropout(dropout)
-    )
-    return block
+class MLP(nn.Module):
+    def __init__(self,dim,inner_dim):
+        super(MLP, self).__init__()
+        drop=0.1
+        self.fc=nn.Sequential(
+            nn.Linear(dim,inner_dim),
+            nn.GELU(),
+            nn.Dropout(drop),
+            nn.Linear(inner_dim,dim),
+            nn.Dropout(drop)
+        )
+    def forward(self,input):
+        output=self.fc(input)
+        return output
+
+
+class Mixer(nn.Module):
+    def __init__(self,dim,n_patch,token_dim,channel_dim):
+        super(Mixer, self).__init__()
+        self.token_mixer=nn.Sequential(
+            nn.LayerNorm(dim),
+            Rearrange('b n d -> b d n'),
+            MLP(n_patch,token_dim),
+            Rearrange('b d n -> b n d')
+        )
+        self.channel_mixer=nn.Sequential(
+            nn.LayerNorm(dim),
+            MLP(dim,channel_dim)
+        )
+
+    def forward(self,input):
+        output=input+self.token_mixer(input)
+        output=output+self.channel_mixer(output)
+        return output
 
 class MLP_Mixer(nn.Module):
-    def __init__(self,patch_size,depth):
+    def __init__(self,in_channel,dim,patch_size,depth,token_dim,channel_dim):
         super(MLP_Mixer, self).__init__()
-        self.fc1=Rearrange('b c (h p1) (w p2) -> b (h w) c (p1 p2)', p1 = patch_size, p2 = patch_size)
-        self.fc2=nn.Linear((patch_size ** 2), 100)
-        self.fc3=list()
+        n_patch=(28//patch_size)**2
+        self.prepatch=nn.Sequential(
+            nn.Conv2d(in_channel, dim, patch_size, patch_size),
+            Rearrange('b c h w -> b (h w) c'),
+        )
+
+        self.mixer_blocks = nn.ModuleList([])
         for i in range(depth):
-            self.fc3.append(token_Mixer(100))
-            self.fc3.append(channel_Mixer(1))
-        self.fc4=nn.LayerNorm(100)
-        # self.fc5=Reduce('b p c n -> b n', 'mean')
-        # self.fc5=torch.mean(x, dim=[2, 3])
-        self.fc6=nn.Linear(100, 10)
+            self.mixer_blocks.append(Mixer(dim,n_patch, token_dim, channel_dim))
 
-    def forward(self,x):
-        # print('before fc1,the size is '+str(x.size()))
-        x=self.fc1(x)
-        # print('before fc2,the size is ' + str(x.size()))
-        x=self.fc2(x)
-        # print('before fc3,the size is ' + str(x.size()))
-        for layer in self.fc3:
-            res=x
-            x=res+layer(x)
-            x=x.transpose(2,3)
-        # print('before fc4,the size is ' + str(x.size()))
-        x=self.fc4(x)
-        # print('before fc5,the size is ' + str(x.size()))
-        # x=self.fc5(x)
-        x=torch.mean(x,dim=[1,2])
-        # print('before fc6,the size is ' + str(x.size()))
-        return F.log_softmax(self.fc6(x),dim=1)
+        self.classifier_1=nn.LayerNorm(dim)
+        self.classifier_2=nn.Linear(dim,10)
+
+    def forward(self,input):
+        output=self.prepatch(input)
+        for layer in self.mixer_blocks:
+            output=layer(output)
+        output=self.classifier_1(output)
+        output= output.mean(dim=1)
+        return F.log_softmax(self.classifier_2(output),dim=1)
 
 
-model = MLP_Mixer(7,4).to(device)
-for i in range(len(model.fc3)):
-    model.fc3[i].to(device)
+
+# class FeedForward(nn.Module):
+#     def __init__(self, dim, hidden_dim, dropout = 0.):
+#         super().__init__()
+#         self.net = nn.Sequential(
+#             nn.Linear(dim, hidden_dim),
+#             nn.GELU(),
+#             nn.Dropout(dropout),
+#             nn.Linear(hidden_dim, dim),
+#             nn.Dropout(dropout)
+#         )
+#     def forward(self, x):
+#         return self.net(x)
+#
+# class MixerBlock(nn.Module):
+#
+#     def __init__(self, dim, num_patch, token_dim, channel_dim, dropout = 0.):
+#         super().__init__()
+#
+#         self.token_mix = nn.Sequential(
+#             nn.LayerNorm(dim),
+#             Rearrange('b n d -> b d n'),
+#             FeedForward(num_patch, token_dim, dropout),
+#             Rearrange('b d n -> b n d')
+#         )
+#
+#         self.channel_mix = nn.Sequential(
+#             nn.LayerNorm(dim),
+#             FeedForward(dim, channel_dim, dropout),
+#         )
+#
+#     def forward(self, x):
+#
+#         x = x + self.token_mix(x)
+#
+#         x = x + self.channel_mix(x)
+#
+#         return x
+#
+# class MLPMixer(nn.Module):
+#     def __init__(self, in_channels, dim, num_classes, patch_size, image_size, depth, token_dim, channel_dim):
+#         super().__init__()
+#         self.num_patch = (image_size // patch_size) ** 2
+#         self.to_patch_embedding = nn.Sequential(
+#             nn.Conv2d(in_channels, dim, patch_size, patch_size),
+#             Rearrange('b c h w -> b (h w) c'),
+#         )
+#
+#         self.mixer_blocks = nn.ModuleList([])
+#         for _ in range(depth):
+#             self.mixer_blocks.append(MixerBlock(dim, self.num_patch, token_dim, channel_dim))
+#
+#         self.layer_norm = nn.LayerNorm(dim)
+#
+#         self.mlp_head = nn.Sequential(
+#             nn.Linear(dim, num_classes)
+#         )
+#
+#     def forward(self, x):
+#
+#         x = self.to_patch_embedding(x)
+#
+#         for mixer_block in self.mixer_blocks:
+#             x = mixer_block(x)
+#
+#         x = self.layer_norm(x)
+#
+#         x = x.mean(dim=1)
+#
+#         return self.mlp_head(x)
+
+dim=10
+model = MLP_Mixer(1,100,7,4,400,400).to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
 criterion = nn.CrossEntropyLoss()
 
@@ -153,7 +224,3 @@ lossv, accv = [], []
 for epoch in range(1, epochs + 1):
     train(epoch)
     validate(lossv, accv)
-# input=torch.ones(32,1,28,28)
-# output=model(input)
-
-
