@@ -28,32 +28,45 @@
 # # Show the plot
 # plt.show()
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+# import torch
+#
+# # Define the tensors
+# tensor1 = torch.tensor([95.1500, 96.2200, 96.1200, 96.7500, 96.8500, 96.8500, 97.1700, 97.1500, 97.2900, 97.3900])
+# tensor2 = torch.tensor([95.3300, 96.3700, 97.2300, 97.0000, 97.2500, 96.7200, 97.4900, 97.6800, 97.3100, 97.6000])
+# tensor3 = torch.tensor([94.4500, 96.4400, 96.8300, 97.0500, 97.2700, 97.6400, 97.4700, 97.6300, 97.7800, 97.7700])
+# tensor4 = torch.tensor([89.8400, 92.8700, 94.2100, 95.2300, 95.8000, 96.2100, 96.4700, 96.7400, 97.0700, 97.2700])
+# tensor5 = torch.tensor([31.4900, 40.8900, 46.6000, 58.7100, 75.7500, 80.2100, 82.3400, 83.8900, 85.2000, 86.1900])
+# # Create x-axis values (assuming indices as x-axis)
+# x = range(len(tensor1))
+#
+# # Plot the tensors
+# plt.plot(x, tensor1, label='0.2')
+# plt.plot(x, tensor2, label='0.1')
+# plt.plot(x, tensor3, label='0.05')
+# plt.plot(x, tensor4, label='0.01')
+# plt.plot(x, tensor5, label='0.0005')
+#
+# # Add labels and title
+# plt.xlabel('epoch')
+# plt.ylabel('Accuracy')
+# plt.title('Accuracy with learning rate')
+#
+# # Add legend
+# plt.legend()
+#
+# # Show the plot
+# plt.show()
+
+
+
+# blocks=[6,12,24,16]
+# for i in range(len(blocks)):
+#     print(i)
+
 import torch
 
-# Define the tensors
-tensor1 = torch.tensor([95.1500, 96.2200, 96.1200, 96.7500, 96.8500, 96.8500, 97.1700, 97.1500, 97.2900, 97.3900])
-tensor2 = torch.tensor([95.3300, 96.3700, 97.2300, 97.0000, 97.2500, 96.7200, 97.4900, 97.6800, 97.3100, 97.6000])
-tensor3 = torch.tensor([94.4500, 96.4400, 96.8300, 97.0500, 97.2700, 97.6400, 97.4700, 97.6300, 97.7800, 97.7700])
-tensor4 = torch.tensor([89.8400, 92.8700, 94.2100, 95.2300, 95.8000, 96.2100, 96.4700, 96.7400, 97.0700, 97.2700])
-tensor5 = torch.tensor([31.4900, 40.8900, 46.6000, 58.7100, 75.7500, 80.2100, 82.3400, 83.8900, 85.2000, 86.1900])
-# Create x-axis values (assuming indices as x-axis)
-x = range(len(tensor1))
-
-# Plot the tensors
-plt.plot(x, tensor1, label='0.2')
-plt.plot(x, tensor2, label='0.1')
-plt.plot(x, tensor3, label='0.05')
-plt.plot(x, tensor4, label='0.01')
-plt.plot(x, tensor5, label='0.0005')
-
-# Add labels and title
-plt.xlabel('epoch')
-plt.ylabel('Accuracy')
-plt.title('Accuracy with learning rate')
-
-# Add legend
-plt.legend()
-
-# Show the plot
-plt.show()
+a=torch.ones(4,3,32,32)
+b=torch.ones(4,8,32,32)
+c=torch.cat([a,b],1)
+print(c.size())

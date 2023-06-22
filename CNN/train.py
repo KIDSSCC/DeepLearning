@@ -1,4 +1,6 @@
-from resnet import resnet18
+from resnet import ResNet
+from densenet import MyDenseNet
+from SEresnet import SEresnet
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -29,7 +31,7 @@ print('Using PyTorch version:', torch.__version__, ' Device:', device)
 
 
 
-net = resnet18().to(device)
+net = SEresnet().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 print(net)
@@ -56,7 +58,7 @@ for epoch in range(2):
             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
             running_loss = 0.0
 print('Finished Training')
-PATH = '.save_models/cifar_resnet.pth'
+PATH = './save_models/cifar_resnet.pth'
 torch.save(net.state_dict(), PATH)
 
 correct = 0
@@ -85,6 +87,8 @@ total_pred = {classname: 0 for classname in classes}
 with torch.no_grad():
     for data in testloader:
         images, labels = data
+        images=images.to(device)
+        labels=labels.to(device)
         outputs = net(images)
         _, predictions = torch.max(outputs, 1)
         # collect the correct predictions for each class
@@ -98,3 +102,12 @@ with torch.no_grad():
 for classname, correct_count in correct_pred.items():
     accuracy = 100 * float(correct_count) / total_pred[classname]
     print(f'Accuracy for class: {classname:5s} is {accuracy:.1f} %')
+
+# for input,label in trainloader:
+#     print(input.size())
+#     print(label.size())
+#     break
+
+# input=torch.ones(4,3,32,32)
+# output=net(input)
+
