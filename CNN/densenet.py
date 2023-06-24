@@ -100,7 +100,6 @@ class MyDenseNet(nn.Module):
 
         self.fc2=nn.Sequential()
         for i in range(phase[0]):
-            print(inner_dim)
             self.fc2.add_module("BottleNeck{}".format(i+1),BottleNeck(inner_dim,self.growth_rate))
             inner_dim+=self.growth_rate
         out_dim = int(reduction * inner_dim)

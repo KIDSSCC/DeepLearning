@@ -53,9 +53,42 @@ class Net(nn.Module):
 net = Net()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+print(net)
+
+total_params = sum(p.numel() for p in net.parameters())
+print(f"Total number of parameters: {total_params}")
+
+# for input,label in trainloader:
+#     print(input.size())
+#     output=net(input)
+#     print(output.size())
+#     break
 
 
-for epoch in range(2):  # loop over the dataset multiple times
+all_loss=[]
+Accuracy=[]
+# 验证函数，记录训练过程中验证集的损失变化
+def evaluate():
+    correct = 0
+    total = 0
+    loss=0
+    # since we're not training, we don't need to calculate the gradients for our outputs
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data
+            outputs = net(images)
+            loss+=criterion(outputs,labels).item()
+            # the class with the highest energy is what we choose as prediction
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    # 记录平均损失和准确率
+    all_loss.append(loss/len(testloader))
+    Accuracy.append(correct/total)
+    print('loss is {} and accuracy is {}'.format(loss/len(testloader),correct/total) )
+
+n_epoch=10
+for epoch in range(n_epoch):  # loop over the dataset multiple times
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
@@ -76,10 +109,25 @@ for epoch in range(2):  # loop over the dataset multiple times
         if i % 2000 == 1999:    # print every 2000 mini-batches
             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
             running_loss = 0.0
+    evaluate()
+
 
 print('Finished Training')
 PATH = './cifar_net.pth'
 torch.save(net.state_dict(), PATH)
+
+
+plt.figure(figsize=(5,3))
+plt.plot(np.arange(1,n_epoch+1), all_loss)
+plt.title('validate loss')
+plt.savefig("loss.png")
+plt.clf()
+
+plt.figure(figsize=(5,3))
+plt.plot(np.arange(1,n_epoch+1), Accuracy)
+plt.title('validation accuracy')
+plt.savefig("Accuracy.png")
+plt.clf()
 
 
 correct = 0

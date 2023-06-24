@@ -34,12 +34,10 @@ class SEBlock(nn.Module):
 
     def forward(self,input):
         output=self.residual(input)
-
         squeeze = self.squeeze(output)
         squeeze = squeeze.view(squeeze.size(0), -1)
         excitation = self.excitation(squeeze)
         excitation = excitation.view(output.size(0), output.size(1), 1, 1)
-
         output = output * excitation.expand_as(output) + self.shortcut(input)
         return F.relu(output)
 

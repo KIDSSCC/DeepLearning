@@ -66,7 +66,14 @@
 
 import torch
 
-a=torch.ones(4,3,32,32)
-b=torch.ones(4,8,32,32)
-c=torch.cat([a,b],1)
-print(c.size())
+# a=torch.ones(4,3,32,32)
+# b=torch.ones(4,8,32,32)
+# c=torch.cat([a,b],1)
+# print(c.size())
+import numpy as np
+import matplotlib.pyplot as plt
+
+a=[1,2,3,4,5]
+plt.plot(np.arange(1,9+1,2), a)
+plt.title('validation loss')
+plt.show()
