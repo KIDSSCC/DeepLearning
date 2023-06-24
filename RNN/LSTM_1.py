@@ -85,12 +85,14 @@ def lineToTensor(line):
         tensor[li][0][letterToIndex(letter)] = 1
     return tensor
 
-
-
-from LSTM import LSTM
+from LSTM_rewrite import mylstm
 hidden_size=128
-output_size=n_categories
-lstm = LSTM(n_letters, hidden_size, output_size)
+lstm=mylstm()
+
+# from LSTM import LSTM
+# hidden_size=128
+# output_size=n_categories
+# lstm = LSTM(n_letters, hidden_size, output_size)
 
 # input = lineToTensor('Albert')
 # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
@@ -125,11 +127,13 @@ criterion = nn.NLLLoss()
 learning_rate = 0.05
 def train(category_tensor, line_tensor):
     # 初始全零的隐藏向量
-    hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+    # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+    hidden=torch.zeros(1,hidden_size)
+    cell=torch.zeros(1,hidden_size)
     lstm.zero_grad()
     for i in range(line_tensor.size()[0]):
         # 对于name中的每一个字母
-        output,hidden= lstm(line_tensor[i],hidden)
+        output,hidden,cell= lstm(line_tensor[i],hidden,cell)
 
     loss = criterion(output, category_tensor)
     loss.backward()
@@ -182,9 +186,11 @@ all=0
 for key,value in category_lines.items():
     for name in value:
         line_tensor = lineToTensor(name)
-        hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+        # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+        hidden=torch.zeros(1,hidden_size)
+        cell=torch.zeros(1,hidden_size)
         for i in range(line_tensor.size()[0]):
-            output, hidden = lstm(line_tensor[i], hidden)
+            output, hidden,cell= lstm(line_tensor[i], hidden,cell)
         # 得到结果向量output
         guess, guess_i = categoryFromOutput(output)
         if guess == key:
@@ -198,9 +204,11 @@ n_confusion = 10000
 # Just return an output given a line
 def evaluate(line_tensor):
     # hidden = rnn.initHidden()
-    hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+    # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
+    hidden = torch.zeros(1, hidden_size)
+    cell = torch.zeros(1, hidden_size)
     for i in range(line_tensor.size()[0]):
-        output ,hidden= lstm(line_tensor[i],hidden)
+        output ,hidden,cell= lstm(line_tensor[i],hidden,cell)
 
     return output
 
