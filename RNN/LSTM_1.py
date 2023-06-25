@@ -12,11 +12,6 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-if torch.cuda.is_available():
-    device = torch.device('cuda')
-else:
-    device = torch.device('cpu')
-print('Using PyTorch version:', torch.__version__, ' Device:', device)
 
 def findFiles(path):
     """
@@ -30,6 +25,7 @@ def findFiles(path):
 # 所有的ascii字符加上四个符号
 all_letters = string.ascii_letters + " .,;'"
 n_letters = len(all_letters)
+
 
 
 # Turn a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
@@ -67,6 +63,17 @@ for filename in findFiles('./data/names/*.txt'):
 n_categories = len(all_categories)
 
 
+train_data=dict()
+test_data=dict()
+
+for key,value in category_lines.items():
+    n_samples = len(value)
+    split_index = int(n_samples * 0.8)
+    random.shuffle(value)
+    train_data[key] = value[:split_index]
+    test_data[key] = value[split_index:]
+
+
 # Find letter index from all_letters, e.g. "a" = 0
 # 确定字母索引
 def letterToIndex(letter):
@@ -86,18 +93,11 @@ def lineToTensor(line):
     return tensor
 
 from LSTM_rewrite import mylstm
+from LSTM import LSTM
+from rnn import RNN
 hidden_size=128
-lstm=mylstm()
-
-# from LSTM import LSTM
-# hidden_size=128
-# output_size=n_categories
-# lstm = LSTM(n_letters, hidden_size, output_size)
-
-# input = lineToTensor('Albert')
-# hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
-# output, next_hidden = lstm(input[0], hidden)
-# print(torch.exp(output))
+lstm=LSTM(57,128,18)
+print(lstm)
 
 # 根据输出的张量确定所属的语言
 def categoryFromOutput(output):
@@ -105,17 +105,15 @@ def categoryFromOutput(output):
     category_i = top_i[0].item()
     return all_categories[category_i], category_i
 
-
-
 def randomChoice(l):
     # 从列表l中随机选择一个元素返回
     return l[random.randint(0, len(l) - 1)]
 
-def randomTrainingExample():
+def randomTrainingExample(dataset):
     # 随机选择一种语言
     category = randomChoice(all_categories)
     # 从这种语言对应的名字中随机选择一个名字
-    line = randomChoice(category_lines[category])
+    line = randomChoice(dataset[category])
     # 结果标签向量？
     category_tensor = torch.tensor([all_categories.index(category)], dtype=torch.long)
     line_tensor = lineToTensor(line)
@@ -127,18 +125,16 @@ criterion = nn.NLLLoss()
 learning_rate = 0.05
 def train(category_tensor, line_tensor):
     # 初始全零的隐藏向量
-    # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
-    hidden=torch.zeros(1,hidden_size)
-    cell=torch.zeros(1,hidden_size)
+    hidden=lstm.init_hidden()
     lstm.zero_grad()
+
     for i in range(line_tensor.size()[0]):
         # 对于name中的每一个字母
-        output,hidden,cell= lstm(line_tensor[i],hidden,cell)
+        output,hidden= lstm(line_tensor[i],hidden)
 
     loss = criterion(output, category_tensor)
     loss.backward()
 
-    # Add parameters' gradients to their values, multiplied by learning rate
     for p in lstm.parameters():
         p.data.add_(p.grad.data, alpha=-learning_rate)
 
@@ -151,6 +147,7 @@ plot_every = 1000
 # Keep track of losses for plotting
 current_loss = 0
 all_losses = []
+all_accuracy=[]
 
 def timeSince(since):
     now = time.time()
@@ -161,7 +158,7 @@ def timeSince(since):
 
 start = time.time()
 for iter in range(1, n_iters + 1):
-    category, line, category_tensor, line_tensor = randomTrainingExample()
+    category, line, category_tensor, line_tensor = randomTrainingExample(train_data)
     output, loss = train(category_tensor, line_tensor)
     current_loss += loss
 
@@ -176,21 +173,38 @@ for iter in range(1, n_iters + 1):
         all_losses.append(current_loss / plot_every)
         current_loss = 0
 
+        correct = 0
+        all = 0
+        for key, value in test_data.items():
+            for name in value:
+                line_tensor = lineToTensor(name)
+                hidden = lstm.init_hidden()
+                for i in range(line_tensor.size()[0]):
+                    output, hidden = lstm(line_tensor[i], hidden)
+                # 得到结果向量output
+                guess, guess_i = categoryFromOutput(output)
+                if guess == key:
+                    correct += 1
+            all += len(value)
+        all_accuracy.append(correct/all)
+
 plt.figure()
 plt.plot(all_losses)
-# plt.show()
+plt.title('Loss change')
+
+plt.figure()
+plt.plot(all_accuracy)
+plt.title('Accuracy change')
 
 
 correct=0
 all=0
-for key,value in category_lines.items():
+for key,value in test_data.items():
     for name in value:
         line_tensor = lineToTensor(name)
-        # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
-        hidden=torch.zeros(1,hidden_size)
-        cell=torch.zeros(1,hidden_size)
+        hidden = lstm.init_hidden()
         for i in range(line_tensor.size()[0]):
-            output, hidden,cell= lstm(line_tensor[i], hidden,cell)
+            output, hidden= lstm(line_tensor[i], hidden)
         # 得到结果向量output
         guess, guess_i = categoryFromOutput(output)
         if guess == key:
@@ -201,20 +215,17 @@ print('Accuract is {}/{}'.format(correct,all))
 # Keep track of correct guesses in a confusion matrix
 confusion = torch.zeros(n_categories, n_categories)
 n_confusion = 10000
-# Just return an output given a line
 def evaluate(line_tensor):
-    # hidden = rnn.initHidden()
-    # hidden = (torch.zeros(1, 128), torch.zeros(1, 128))
-    hidden = torch.zeros(1, hidden_size)
-    cell = torch.zeros(1, hidden_size)
+    hidden = lstm.init_hidden()
+
     for i in range(line_tensor.size()[0]):
-        output ,hidden,cell= lstm(line_tensor[i],hidden,cell)
+        output ,hidden= lstm(line_tensor[i],hidden)
 
     return output
 
 # Go through a bunch of examples and record which are correctly guessed
 for i in range(n_confusion):
-    category, line, category_tensor, line_tensor = randomTrainingExample()
+    category, line, category_tensor, line_tensor = randomTrainingExample(category_lines)
     output = evaluate(line_tensor)
     guess, guess_i = categoryFromOutput(output)
     category_i = all_categories.index(category)
@@ -240,4 +251,5 @@ ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
 ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
 # sphinx_gallery_thumbnail_number = 2
+plt.title("Predict Matrix")
 plt.show()

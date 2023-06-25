@@ -428,7 +428,8 @@ class mylstm(nn.Module):
         self.classifier=nn.Linear(self.hidden_size,self.output_size)
 
 
-    def forward(self,input,hidden,cell):
+    def forward(self,input,hc):
+        hidden,cell=hc
         # 遗忘门的处理
         before_gate=torch.cat((input,hidden),dim=1)
         f_activate=self.f_gate(before_gate)
@@ -445,7 +446,10 @@ class mylstm(nn.Module):
 
         output=self.classifier(h_t)
         output=F.log_softmax(output,dim=1)
-        return output,h_t,o_t
+        return output,(h_t,o_t)
+
+    def init_hidden(self):
+        return (torch.zeros(1, 128), torch.zeros(1, 128))
 
 
 if __name__=='__main__':

@@ -73,7 +73,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-a=[1,2,3,4,5]
-plt.plot(np.arange(1,9+1,2), a)
-plt.title('validation loss')
-plt.show()
+
+x=torch.tensor([1,2,3],dtype=torch.double)
+print(x)

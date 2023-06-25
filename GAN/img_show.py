@@ -10,13 +10,6 @@ print(torch.__version__) # 1.0.1
 
 import matplotlib.pyplot as plt
 
-
-dataset = torchvision.datasets.FashionMNIST(root='./FashionMNIST/',
-                       transform=transforms.Compose([transforms.ToTensor(),
-                                                     transforms.Normalize((0.5,), (0.5,))]),
-                       download=True)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
-
 def show_imgs(x, new_fig=True):
     grid = vutils.make_grid(x.detach().cpu(), nrow=8, normalize=True, pad_value=0.3)
     grid = grid.transpose(0,2).transpose(0,1) # channels as last dimension
@@ -24,6 +17,15 @@ def show_imgs(x, new_fig=True):
         plt.figure()
     plt.imshow(grid.numpy())
 
+
+# let's download the Fashion MNIST data, if you do this locally and you downloaded before,
+# you can change data paths to point to your existing files
+# dataset = torchvision.datasets.MNIST(root='./MNISTdata', ...)
+dataset = torchvision.datasets.FashionMNIST(root='./FashionMNIST/',
+                       transform=transforms.Compose([transforms.ToTensor(),
+                                                     transforms.Normalize((0.5,), (0.5,))]),
+                       download=True)
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
 
 class Discriminator(torch.nn.Module):
     def __init__(self, inp_dim=784):
@@ -52,36 +54,32 @@ class Generator(nn.Module):
         out = out.view(out.size(0), 1, 28, 28)
         return out
 
-
+criterion = nn.BCELoss()
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print('Device: ', device)
-
-from ConvGAN import *
-D=ConvDiscriminator(1).to(device)
-G=ConvGenerator(100,1).to(device)
-# D = Discriminator().to(device)
-# G = Generator().to(device)
-
-# optimizerD = torch.optim.SGD(D.parameters(), lr=0.03)
-# optimizerG = torch.optim.SGD(G.parameters(), lr=0.03)
-optimizerD = torch.optim.Adam(D.parameters(), lr=0.0002)
-optimizerG = torch.optim.Adam(G.parameters(), lr=0.0002)
-
-criterion = nn.BCELoss()
-
+# Re-initialize D, G:
+D = Discriminator().to(device)
+G = Generator().to(device)
+# Now let's set up the optimizers (Adam, better than SGD for this)
+optimizerD = torch.optim.SGD(D.parameters(), lr=0.03)
+optimizerG = torch.optim.SGD(G.parameters(), lr=0.03)
+# optimizerD = torch.optim.Adam(D.parameters(), lr=0.0002)
+# optimizerG = torch.optim.Adam(G.parameters(), lr=0.0002)
 lab_real = torch.ones(64, 1, device=device)
 lab_fake = torch.zeros(64, 1, device=device)
 
-D_allloss=[]
-G_allloss=[]
-D_run_loss=0
-G_run_loss=0
+# for logging:
+collect_x_gen = []
+fixed_noise = torch.randn(64, 100, device=device)
+# fig = plt.figure()  # keep updating this one
+# plt.ion()
 
 for epoch in range(3):  # 3 epochs
     for i, data in enumerate(dataloader, 0):
         # STEP 1: Discriminator optimization step
         x_real, _ = next(iter(dataloader))
         x_real = x_real.to(device)
+        # reset accumulated gradients from previous iteration
         optimizerD.zero_grad()
 
         D_x = D(x_real)
@@ -97,6 +95,7 @@ for epoch in range(3):  # 3 epochs
         optimizerD.step()
 
         # STEP 2: Generator optimization step
+        # reset accumulated gradients from previous iteration
         optimizerG.zero_grad()
 
         z = torch.randn(64, 100, device=device)  # random noise, 64 samples, z_dim=100
@@ -107,81 +106,16 @@ for epoch in range(3):  # 3 epochs
         lossG.backward()
         optimizerG.step()
         if i % 100 == 0:
-            D_allloss.append(lossD)
-            G_allloss.append(lossG)
-            print('epoch:{}.index:{}/{} last mb D(x)={:.4f} D(G(z))={:.4f}'.format(
+            x_gen = G(fixed_noise)
+            show_imgs(x_gen, new_fig=False)
+            # fig.canvas.draw()
+            print('e{}.i{}/{} last mb D(x)={:.4f} D(G(z))={:.4f}'.format(
                 epoch, i, len(dataloader), D_x.mean().item(), D_G_z.mean().item()))
+    # End of epoch
+    x_gen = G(fixed_noise)
+    collect_x_gen.append(x_gen.detach().clone())
 
-for i in range(len(D_allloss)):
-    D_allloss[i]=D_allloss[i].detach()
-for i in range(len(G_allloss)):
-    G_allloss[i]=G_allloss[i].detach()
-print(D_allloss)
-print(G_allloss)
-plt.figure()
-plt.plot(D_allloss)
-plt.title('D_Loss')
+for x_gen in collect_x_gen:
+    show_imgs(x_gen)
 
-plt.figure()
-plt.plot(G_allloss)
-plt.title('G_Loss')
 plt.show()
-
-inputs=torch.randn(8,100)
-out=G(inputs)
-show_imgs(out)
-# change 1
-clone1=inputs
-clone1[:,0]=0.1
-out1=G(clone1)
-clone1[:,0]=3
-out2=G(clone1)
-clone1[:,0]=10
-out3=G(clone1)
-outputs=torch.cat([out1,out2,out3],dim=0)
-show_imgs(outputs)
-# change 2
-clone2=inputs
-clone2[:,10]=-10
-out1=G(clone2)
-clone2[:,10]=0
-out2=G(clone2)
-clone2[:,10]=10
-out3=G(clone2)
-outputs=torch.cat([out1,out2,out3],dim=0)
-show_imgs(outputs)
-# change 3
-clone3=inputs
-clone3[:,49]=-10
-out1=G(clone3)
-clone3[:,49]=0
-out2=G(clone3)
-clone3[:,49]=10
-out3=G(clone3)
-outputs=torch.cat([out1,out2,out3],dim=0)
-show_imgs(outputs)
-# change 4
-clone4=inputs
-clone4[:,75]=-10
-out1=G(clone4)
-clone4[:,75]=0
-out2=G(clone4)
-clone4[:,75]=10
-out3=G(clone4)
-outputs=torch.cat([out1,out2,out3],dim=0)
-show_imgs(outputs)
-# change 5
-clone5=inputs
-clone5[:,99]=-20
-out1=G(clone5)
-clone5[:,99]=0
-out2=G(clone5)
-clone5[:,99]=20
-out3=G(clone5)
-outputs=torch.cat([out1,out2,out3],dim=0)
-show_imgs(outputs)
-
-
-
-
-

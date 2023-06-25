@@ -23,6 +23,9 @@ class LSTM(nn.Module):
         # print(output)
         return output,hidden
 
+    def init_hidden(self):
+        return (torch.zeros(1, 128), torch.zeros(1, 128))
+
 
 if __name__=='__main__':
     input=torch.ones(1,57)
